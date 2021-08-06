@@ -1,6 +1,16 @@
 cmake_minimum_required(VERSION 3.20)
-project(LAN_File_Transfer_Frontend_C C)
+project(lftp-ctrl C)
 
 set(CMAKE_C_STANDARD 99)
 
-add_executable(LAN_File_Transfer_Frontend_C main.c)
+include_directories(
+        .
+        ./include
+)
+
+set(SOURCES
+        main.c
+        src/ctrl.c
+        )
+
+add_executable(${PROJECT_NAME} ${SOURCES})
