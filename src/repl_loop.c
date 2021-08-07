@@ -171,7 +171,8 @@ int cmd_list_exec(cmd_list_t array)
     }
     else if (strcmp(array->data, "scan") == 0)
     {
-        printf("Sorry, Scan was not implemented.\n");
+        printf("Sorry, Scan was not implemented, run as a raw command.\n");
+        return 1;
     }
     else
     {
