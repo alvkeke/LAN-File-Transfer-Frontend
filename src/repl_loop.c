@@ -139,15 +139,35 @@ int cmd_list_exec(cmd_list_t array)
 {
     int count = cmd_list_count(array);
 
-    if (strcmp(array->data, "send") == 0 && count == 4)
+    if (strcmp(array->data, "send") == 0)
     {
-        puts("try to send file:");
-        ctrl_send_file(array->next->data, array->next->next->data, array->next->next->next->data);
+        printf("try to send file:");
+        if (count < 4)
+        {
+            printf("failed: lack of parameters\n");
+            return 0;
+        }
+        int ret = ctrl_send_file(array->next->data, array->next->next->data, array->next->next->next->data);
+        if (ret)
+            printf("failed: %d\n", ret);
+        else
+            printf("success.\n");
+
     }
-    else if (strcmp(array->data, "set") == 0 && count == 3)
+    else if (strcmp(array->data, "set") == 0)
     {
-        puts("try to set configuration:");
-        ctrl_set_conf(array->next->data, array->next->next->data);
+        printf("try to set configuration:");
+        if (count < 3)
+        {
+            printf("failed: lack of parameters\n");
+            return 0;
+        }
+
+        int ret = ctrl_set_conf(array->next->data, array->next->next->data);
+        if (ret)
+            printf("failed: %d\n", ret);
+        else
+            printf("success.\n");
     }
     else if (strcmp(array->data, "scan") == 0)
     {
@@ -155,7 +175,7 @@ int cmd_list_exec(cmd_list_t array)
     }
     else
     {
-        puts("unknown command, raw cmd");
+        printf("unknown command, raw cmd");
         return 1;
     }
     return 0;
