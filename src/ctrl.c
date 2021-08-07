@@ -52,6 +52,8 @@ int ctrl_conn_create(int port)
 static char str_ret_success[] = "success\n";
 static char str_ret_failed[256];
 
+static char recv_buf[CTRL_RET_BUF_SIZE];
+
 /**
  * send a request to LFTP server for sending a file.
  * @param filename file need to be send, string
@@ -70,9 +72,9 @@ int ctrl_send_file(const char *filename, const char *ip, char *s_port)
     size_t port_len = strlen(s_port);
     size_t buf_len = filename_len + ip_len + port_len + strlen("send   \n");
 
-    char* data_buf = (char*) malloc(buf_len);
+    char* send_buf = (char*) malloc(buf_len);
 
-    char *cp_pt = data_buf;
+    char *cp_pt = send_buf;
     static char send_cmd_head[] = "send ";
     strcpy(cp_pt, send_cmd_head);
     cp_pt += strlen(send_cmd_head);
@@ -84,35 +86,21 @@ int ctrl_send_file(const char *filename, const char *ip, char *s_port)
     *(cp_pt++) = ' ';
     strcpy(cp_pt, s_port);
     cp_pt += port_len;
+    *(cp_pt) = '\n';
 
-    *(cp_pt++) = '\n';
-    *(cp_pt++) = '\0';
+    ssize_t trans_len = send(g_ctrl_conn_fd, send_buf, buf_len, 0);
+    free(send_buf);
+    if (trans_len < 0) return CTRL_ERR_SEND_FAILED;
 
-    ssize_t trans_len = send(g_ctrl_conn_fd, data_buf, buf_len, 0);
-    if (trans_len < 0)
-    {
-        free(data_buf);
-        return CTRL_ERR_SEND_FAILED;
-    }
+    memset(recv_buf, 0, CTRL_RET_BUF_SIZE);
+    trans_len = recv(g_ctrl_conn_fd, recv_buf, CTRL_RET_BUF_SIZE, 0);
+    if (trans_len < 0) return CTRL_ERR_RECV_FAILED;
+    memcpy(str_ret_failed, recv_buf, trans_len);
 
-    memset(data_buf, 0, buf_len);
+    if (strcmp(recv_buf, str_ret_success) != 0)
+        return CTRL_ERR_OPERATE_FAILED;
 
-    trans_len = recv(g_ctrl_conn_fd, data_buf, buf_len, 0);
-    if (trans_len < 0)
-    {
-        free(data_buf);
-        return CTRL_ERR_RECV_FAILED;
-    }
-
-    if (strcmp(data_buf, str_ret_success) == 0)
-    {
-        free(data_buf);
-        return 0;
-    }
-
-    memcpy(str_ret_failed, data_buf, trans_len);
-    free(data_buf);
-    return CTRL_ERR_OPERATE_FAILED;
+    return 0;
 }
 
 
@@ -142,35 +130,49 @@ int ctrl_set_conf(const char *conf, const char *value)
     *(cp_pt++) = ' ';
     strcpy(cp_pt, value);
     cp_pt += value_len;
-    *(cp_pt++) = '\n';
-    *(cp_pt++) = 0x00;
+    *(cp_pt) = '\n';
 
     ssize_t trans_len = send(g_ctrl_conn_fd, data_buf, buf_len, 0);
-    if (trans_len < 0)
-    {
-        free(data_buf);
-        return CTRL_ERR_SEND_FAILED;
-    }
-
-    trans_len = recv(g_ctrl_conn_fd, data_buf, buf_len, 0);
-    if (trans_len < 0)
-    {
-        free(data_buf);
-        return CTRL_ERR_RECV_FAILED;
-    }
-
-    if (strcmp(data_buf, str_ret_success) == 0)
-    {
-        free(data_buf);
-        return 0;
-    }
-
-    memcpy(str_ret_failed, data_buf, trans_len);
     free(data_buf);
-    return CTRL_ERR_OPERATE_FAILED;
+    if (trans_len < 0) return CTRL_ERR_SEND_FAILED;
 
+    trans_len = recv(g_ctrl_conn_fd, recv_buf, CTRL_RET_BUF_SIZE, 0);
+    if (trans_len < 0) return CTRL_ERR_RECV_FAILED;
+    memcpy(str_ret_failed, recv_buf, trans_len);
+
+    if (strcmp(recv_buf, str_ret_success) != 0)
+        return CTRL_ERR_OPERATE_FAILED;
+
+    return 0;
 }
 
+int ctrl_exec_raw(const char *cmd, int has_ret)
+{
+    if (g_ctrl_conn_fd<0) return CTRL_ERR_NOT_CONN;
+    if (!cmd) return CTRL_ERR_NULL_PTR;
+
+    size_t cmd_len = strlen(cmd);
+    char *send_buf = (char*) malloc(cmd_len+1);
+    strcpy(send_buf, cmd);
+    send_buf[cmd_len] = '\n';
+    send_buf[cmd_len+1] = 0x00;
+
+    ssize_t trans_len = send(g_ctrl_conn_fd, cmd, cmd_len+1, 0);
+    free(send_buf);
+    if (trans_len < 0) return CTRL_ERR_SEND_FAILED;
+
+    if (has_ret)
+    {
+        trans_len = recv(g_ctrl_conn_fd, recv_buf, CTRL_RET_BUF_SIZE, 0);
+        if (trans_len < 0) return CTRL_ERR_RECV_FAILED;
+        memcpy(str_ret_failed, recv_buf, trans_len);
+
+        if (strcmp(recv_buf, str_ret_success) != 0)
+            return CTRL_ERR_OPERATE_FAILED;
+    }
+
+    return 0;
+}
 
 /**
  * close a connection to LFTP ctrl server. make user can create a new connection.
