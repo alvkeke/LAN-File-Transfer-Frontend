@@ -10,6 +10,7 @@
 #define CLI_BREAKER "# "
 #define CMD_LINE_MAX 1024
 
-void main_loop(int port);
+void main_loop(const char* ip, int port);
+void main_loop_raw(const char *ip, int port);
 
 #endif //LFTP_CTRL_REPL_LOOP_H

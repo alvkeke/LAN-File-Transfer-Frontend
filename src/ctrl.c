@@ -4,6 +4,7 @@
 
 #include "ctrl.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -23,7 +24,7 @@ static int g_ctrl_conn_fd = -1;
  * @param port the port to the LFTP ctrl server.
  * @return 0 if success, otherwise errno
  */
-int ctrl_conn_create(int port)
+int ctrl_conn_create(const char *ip, int port)
 {
 
     if (g_ctrl_conn_fd >= 0) return 0;
@@ -36,7 +37,7 @@ int ctrl_conn_create(int port)
     struct sockaddr_in ser_addr;
     ser_addr.sin_family = AF_INET;
     ser_addr.sin_port = htons(port);
-    ser_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    ser_addr.sin_addr.s_addr = inet_addr(ip);
 
     if (connect(g_ctrl_conn_fd, (const struct sockaddr *) &ser_addr, sizeof(ser_addr)))
     {
@@ -157,7 +158,7 @@ int ctrl_exec_raw(const char *cmd, int has_ret)
     send_buf[cmd_len] = '\n';
     send_buf[cmd_len+1] = 0x00;
 
-    ssize_t trans_len = send(g_ctrl_conn_fd, cmd, cmd_len+1, 0);
+    ssize_t trans_len = send(g_ctrl_conn_fd, send_buf, cmd_len+1, 0);
     free(send_buf);
     if (trans_len < 0) return CTRL_ERR_SEND_FAILED;
 
@@ -165,10 +166,10 @@ int ctrl_exec_raw(const char *cmd, int has_ret)
     {
         trans_len = recv(g_ctrl_conn_fd, recv_buf, CTRL_RET_BUF_SIZE, 0);
         if (trans_len < 0) return CTRL_ERR_RECV_FAILED;
-        memcpy(str_ret_failed, recv_buf, trans_len);
+        recv_buf[trans_len] = 0x00;
 
-        if (strcmp(recv_buf, str_ret_success) != 0)
-            return CTRL_ERR_OPERATE_FAILED;
+        puts(recv_buf);
+
     }
 
     return 0;

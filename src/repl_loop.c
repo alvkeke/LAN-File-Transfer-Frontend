@@ -182,11 +182,11 @@ int cmd_list_exec(cmd_list_t array)
     return 0;
 }
 
-void main_loop(int port)
+void main_loop(const char *ip, int port)
 {
     static char cmd_line[CMD_LINE_MAX];
 
-    if (ctrl_conn_create(port)) return;
+    if (ctrl_conn_create(ip, port)) return;
 
     while(1)
     {
@@ -209,3 +209,26 @@ void main_loop(int port)
 
 }
 
+void main_loop_raw(const char *ip, int port)
+{
+    static char cmd_line[CMD_LINE_MAX];
+
+    if (ctrl_conn_create(ip, port)) return;
+
+    while(1)
+    {
+        print_cli_format();
+
+        fgets(cmd_line, CMD_LINE_MAX, stdin);
+        size_t read_len = strlen(cmd_line);
+        cmd_line[read_len-1] = 0;
+
+        if (strcmp(cmd_line, "exit") == 0) break;
+
+        ctrl_exec_raw(cmd_line, 1);
+
+    }
+
+    ctrl_conn_close();
+
+}
