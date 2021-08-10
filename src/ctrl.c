@@ -147,6 +147,12 @@ int ctrl_set_conf(const char *conf, const char *value)
     return 0;
 }
 
+/**
+ * execute raw command, and print the return from server if return is available.
+ * @param cmd command need to be executed by server.
+ * @param has_ret indicate that if return is available.
+ * @return 0 if success, CTRL_ERRNO for error.
+ */
 int ctrl_exec_raw(const char *cmd, int has_ret)
 {
     if (g_ctrl_conn_fd<0) return CTRL_ERR_NOT_CONN;
@@ -162,13 +168,37 @@ int ctrl_exec_raw(const char *cmd, int has_ret)
     free(send_buf);
     if (trans_len < 0) return CTRL_ERR_SEND_FAILED;
 
-    if (has_ret)
+    while (has_ret)
     {
-        trans_len = recv(g_ctrl_conn_fd, recv_buf, CTRL_RET_BUF_SIZE, 0);
+        trans_len = recv(g_ctrl_conn_fd, recv_buf, CTRL_RET_BUF_SIZE-1, 0);
         if (trans_len < 0) return CTRL_ERR_RECV_FAILED;
-        recv_buf[trans_len] = 0x00;
 
-        puts(recv_buf);
+        int i;
+        for (i = 0; i < trans_len; ++i)
+        {
+            if (recv_buf[i] == '\n')
+            {
+                recv_buf[i] = 0;
+                puts(recv_buf);
+
+                if (i == trans_len-1) break;
+                puts("=================== wrong data (?) ===================");
+                char *tmp = &recv_buf[i+1];
+                recv_buf[trans_len] = 0x00;
+                puts(tmp);
+                break;
+            }
+        }
+
+        if (i == trans_len)
+        {
+            recv_buf[trans_len] = 0x00;
+            printf("%s", recv_buf);
+        }
+        else
+        {
+            break;
+        }
 
     }
 
